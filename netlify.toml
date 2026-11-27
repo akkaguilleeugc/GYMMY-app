@@ -1,0 +1,61 @@
+"$schema" = "https://open-api.netlify.com/netlify.schema.json"
+
+# GYMMY on Netlify: the web app only, as a static site.
+#
+# Netlify serves static files, so the Node server in api/ (accounts, passkeys, sync between
+# devices) does not run here. VITE_DEMO=1 builds the browser-only version: no sign-in, data kept
+# in this browser's localStorage, started with an example history (frontend/src/lib/demo.js).
+# It is the same build the original project publishes on GitHub Pages.
+#
+# The 180 px exercise stills and animations are copied next to the build from catalogue/media.
+# They are licensed by Gym visual and NOT covered by the AGPL: see NOTICE.md before using this
+# deploy for anything commercial.
+
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build && node ../scripts/catalogue/stage-media.mjs dist"
+  # Dependabot opens a pull request per dependency bump; building a preview for each one only
+  # spends build minutes. Exit 0 skips the build, exit 1 runs it.
+  ignore = "case \"$BRANCH\" in dependabot/*) exit 0;; *) exit 1;; esac"
+
+[build.environment]
+  NODE_VERSION = "22"
+  VITE_DEMO = "1"
+
+# Same headers the project's own nginx sends (web/nginx.conf.template).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+
+# The app shell and the service worker must be checked on every load, or a new deploy is not
+# picked up until the old cache expires.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+# Hashed bundles never change under the same name.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/exercise-media/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+    Cross-Origin-Resource-Policy = "same-origin"
